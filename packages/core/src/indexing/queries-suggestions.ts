@@ -92,7 +92,7 @@ export async function suggestWikiLinkTargets(
     return { suggestions: [], claimedTargetKeys: [], queryReadsAsDate: false }
   }
   const result = await queryWikiTargetCandidates(query, dateGen)
-  return verifyWikiSuggestionAddresses(
+  return await verifyWikiSuggestionAddresses(
     result.candidates,
     result.candidateTargetKeys,
     limit,
@@ -309,7 +309,7 @@ function pathQualifiedInsert(path: string): string | null {
   const target = path.replace(/\.md$/, '')
   const qualified = target.includes('/') ? target : `/${target}`
   const reduced = wikiNoteReference(qualified)
-  if (reduced?.kind !== 'path' || reduced.path !== path) {
+  if ((reduced?.kind !== 'path' && reduced?.kind !== 'pathOrKey') || reduced.path !== path) {
     return null
   }
   return serializeWikiSuggestionAddress(qualified, null)

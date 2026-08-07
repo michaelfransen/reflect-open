@@ -142,7 +142,7 @@ describe('appMenuLayout', () => {
 })
 
 describe('installNativeMenu', () => {
-  it('installs sidebar.toggle as a native Command+\\ menu accelerator', async () => {
+  it(String.raw`installs sidebar.toggle as a native Command+\ menu accelerator`, async () => {
     const dispatch = vi.fn()
     setMenuCommandDispatch(dispatch)
 
@@ -210,7 +210,7 @@ describe('focused note menu dispatch', () => {
     const dispatch = vi.fn()
     setMenuCommandDispatch(dispatch)
     getAllWebviewWindows.mockResolvedValue([
-      { label: 'closing', isFocused: vi.fn(async () => Promise.reject(new Error('closed'))) },
+      { label: 'closing', isFocused: vi.fn(async () => await Promise.reject(new Error('closed'))) },
       { label: 'note-1', isFocused: vi.fn(async () => true) },
     ])
 
@@ -246,7 +246,7 @@ describe('focused note menu dispatch', () => {
     await listenForFocusedNoteMenuCommands(dispatch)
     const handler = listen.mock.calls[0]?.[1]
     if (typeof handler !== 'function') {
-      throw new Error('expected a menu event listener')
+      throw new TypeError('expected a menu event listener')
     }
 
     handler({ payload: 'note.findNext' })

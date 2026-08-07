@@ -10,7 +10,7 @@ const appVersionSchema = z.string()
  * `#[tauri::command]`, a zod-validated response, no direct `invoke` in the UI.
  */
 export async function getAppVersion(): Promise<string> {
-  return call('app_version', {}, appVersionSchema)
+  return await call('app_version', {}, appVersionSchema)
 }
 
 const appPlatformSchema = z.enum(['desktop', 'ios', 'android'])
@@ -24,7 +24,7 @@ export type AppPlatform = z.infer<typeof appPlatformSchema>
  * it is a build-time constant, so callers may cache it freely.
  */
 export async function getAppPlatform(): Promise<AppPlatform> {
-  return call('app_platform', {}, appPlatformSchema)
+  return await call('app_platform', {}, appPlatformSchema)
 }
 
 /** Narrows {@link AppPlatform} to the mobile family. */
@@ -58,7 +58,7 @@ export type MobileStorageKind = 'icloud' | 'local'
  * the returned paths.
  */
 export async function mobileStorage(): Promise<MobileStorageInfo> {
-  return call('mobile_storage', {}, mobileStorageInfoSchema)
+  return await call('mobile_storage', {}, mobileStorageInfoSchema)
 }
 
 const icloudDownloadPendingSchema = z.number().int().nonnegative()
@@ -81,7 +81,7 @@ export async function icloudDownloadPending(
   root: string,
   scope: IcloudDownloadScope,
 ): Promise<number> {
-  return call(
+  return await call(
     'icloud_download_pending',
     { root, notesOnly: scope === 'notes' },
     icloudDownloadPendingSchema,
@@ -98,7 +98,7 @@ export async function icloudPendingCount(
   root: string,
   scope: IcloudDownloadScope,
 ): Promise<number> {
-  return call(
+  return await call(
     'icloud_pending_count',
     { root, notesOnly: scope === 'notes' },
     icloudDownloadPendingSchema,
@@ -117,7 +117,7 @@ export async function icloudRequestDownloads(paths: readonly string[]): Promise<
   if (paths.length === 0) {
     return 0
   }
-  return call('icloud_request_downloads', { paths }, icloudDownloadPendingSchema)
+  return await call('icloud_request_downloads', { paths }, icloudDownloadPendingSchema)
 }
 
 /**
@@ -127,7 +127,7 @@ export async function icloudRequestDownloads(paths: readonly string[]): Promise<
  * only; derive fresh every launch and never persist.
  */
 export async function mobileStorageLocal(): Promise<string> {
-  return call('mobile_storage_local', {}, z.string())
+  return await call('mobile_storage_local', {}, z.string())
 }
 
 const icloudStatusSchema = z.object({
@@ -146,7 +146,7 @@ export type IcloudStatus = z.infer<typeof icloudStatusSchema>
 
 /** Resolve iCloud container availability (desktop settings, Plan 21). */
 export async function icloudStatus(): Promise<IcloudStatus> {
-  return call('icloud_status', {}, icloudStatusSchema)
+  return await call('icloud_status', {}, icloudStatusSchema)
 }
 
 const icloudAdoptedRootSchema = z.string()
@@ -158,7 +158,7 @@ const icloudAdoptedRootSchema = z.string()
  * re-opens the graph at the returned root and runs a baseline conflict scan.
  */
 export async function icloudAdoptGraph(generation: number): Promise<string> {
-  return call('icloud_adopt_graph', { generation }, icloudAdoptedRootSchema)
+  return await call('icloud_adopt_graph', { generation }, icloudAdoptedRootSchema)
 }
 
 const icloudSweepChangeSchema = z.object({
@@ -181,6 +181,15 @@ const icloudSweepOutcomeSchema = z.object({
  */
 export type IcloudSweepOutcome = z.infer<typeof icloudSweepOutcomeSchema>
 
+/**
+ * How much of the graph a sweep checks for unresolved versions. `'full'`
+ * checks every note and runs store housekeeping — the backstop (resume,
+ * adoption baseline). `'candidates'` restricts the per-note version checks
+ * to the paths the live metadata watch flags as conflicted; Rust degrades it
+ * to a full check whenever the watch cannot answer completely.
+ */
+export type IcloudSweepScope = 'full' | 'candidates'
+
 /** Options for {@link icloudConflictsScan}. */
 export interface IcloudScanOptions {
   /** The open graph's generation — the scan is pinned to it. */
@@ -197,17 +206,20 @@ export interface IcloudScanOptions {
    * their current content. Safe to repeat — existing bases never move here.
    */
   recordBaseline?: boolean
+  /** Version-check coverage; defaults to `'full'` (the safe backstop). */
+  scope?: IcloudSweepScope
 }
 
 /** Run an iCloud conflict sweep over the open graph (Plan 21 Phase 2). */
 export async function icloudConflictsScan(options: IcloudScanOptions): Promise<IcloudSweepOutcome> {
-  return call(
+  return await call(
     'icloud_conflicts_scan',
     {
       generation: options.generation,
       skipPaths: options.skipPaths ?? [],
       ingestedPaths: options.ingestedPaths ?? [],
       recordBaseline: options.recordBaseline ?? false,
+      scope: options.scope ?? 'full',
     },
     icloudSweepOutcomeSchema,
   )

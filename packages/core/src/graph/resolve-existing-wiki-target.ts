@@ -255,8 +255,10 @@ async function pathResolution(
     await readNote(path, generation)
     return { kind: 'resolved', path }
   } catch (cause) {
-    // Absent is a real answer: a path link to a file that does not exist is a
-    // broken link, never an invitation to open a same-named file elsewhere.
+    // Absent is a real answer for a *rooted* path link: `[[/Plan]]` to a file
+    // that does not exist is a broken link, never an invitation to open a
+    // same-named file elsewhere. A non-rooted slashed target reaches this via
+    // `pathOrKey` and falls back to name resolution instead.
     return isAppError(cause) && cause.kind === 'notFound'
       ? null
       : { kind: 'unavailable', paths: [path] }
@@ -276,7 +278,17 @@ async function resolveReference(
   if (reference.kind === 'path') {
     return (await pathResolution(reference.path, generation)) ?? { kind: 'missing' }
   }
-  return resolveBareKey(reference.key, generation)
+  if (reference.kind === 'pathOrKey') {
+    // The path reading is more specific, so an existing (or unavailable) file
+    // wins; a target that names no file falls back to the name it also
+    // spells. Only an explicit leading `/` opts out of this fallback.
+    const asPath = await pathResolution(reference.path, generation)
+    if (asPath !== null) {
+      return asPath
+    }
+    return await resolveBareKey(reference.key, generation)
+  }
+  return await resolveBareKey(reference.key, generation)
 }
 
 /**
@@ -292,7 +304,7 @@ export async function resolveExistingWikiTarget(
   const reference = wikiNoteReference(target)
   return reference === null
     ? { kind: 'missing' }
-    : resolveReference(reference, sourcePath, generation)
+    : await resolveReference(reference, sourcePath, generation)
 }
 
 /** Resolve a standard Markdown note href from the note that contains it. */
@@ -304,5 +316,5 @@ export async function resolveExistingMarkdownTarget(
   const reference = markdownNoteReference(sourcePath, href)
   return reference === null
     ? { kind: 'missing' }
-    : resolveReference(reference, sourcePath, generation)
+    : await resolveReference(reference, sourcePath, generation)
 }

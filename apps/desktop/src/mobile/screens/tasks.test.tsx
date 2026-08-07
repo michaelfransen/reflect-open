@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { cleanup, render } from 'vitest-browser-react'
 import { page, userEvent, type Locator } from 'vitest/browser'
@@ -181,7 +181,7 @@ vi.mock('@/components/ui/drawer', () => ({
 /** Narrow a queried element to the editor stub's textarea so `.value` typechecks. */
 function asTextArea(element: Element): HTMLTextAreaElement {
   if (!(element instanceof HTMLTextAreaElement)) {
-    throw new Error('expected a textarea')
+    throw new TypeError('expected a textarea')
   }
   return element
 }

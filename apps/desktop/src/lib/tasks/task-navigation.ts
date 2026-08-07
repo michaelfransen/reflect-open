@@ -1,5 +1,5 @@
 import { dailyPath, taskDateBucket, type OpenTask } from '@reflect/core'
-import { type InsertTaskTarget } from '@/lib/tasks/task-insert-target'
+import type { InsertTaskTarget } from '@/lib/tasks/task-insert-target'
 import { sameTask, taskKey } from '@/lib/tasks/task-identity'
 
 /**
@@ -69,6 +69,6 @@ export function previousTaskKey(ordered: readonly OpenTask[], task: OpenTask): s
  * visible. A no-op when the row isn't mounted or `root` is gone.
  */
 export function scrollTaskIntoView(root: HTMLElement | null, key: string): void {
-  const selector = `[data-task-key="${key.replaceAll('"', '\\"')}"]`
+  const selector = `[data-task-key="${key.replaceAll('"', String.raw`\"`)}"]`
   root?.querySelector(selector)?.scrollIntoView({ block: 'nearest' })
 }

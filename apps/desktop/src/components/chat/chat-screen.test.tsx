@@ -102,7 +102,8 @@ vi.mock('@/editor/markdown-preview', () => ({
     content: string
     onWikiLinkClick?: (target: string, event?: MouseEvent | KeyboardEvent) => void
   }) => {
-    const wikiTargets = Array.from(content.matchAll(/\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g)).map(
+    const wikiTargets = Array.from(
+      content.matchAll(/\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g),
       (match) => match[1]!,
     )
     return (
@@ -261,6 +262,47 @@ describe('ChatScreen', () => {
     const options = streamChat.mock.lastCall?.[0]
     expect(options?.config).toEqual(MODEL)
     expect(options?.messages.at(-1)).toEqual({ role: 'user', content: 'when does atlas ship?' })
+  })
+
+  it('copies a settled reply as the markdown the model wrote', async () => {
+    configureModel()
+    scriptTurn([
+      { type: 'text-delta', text: 'It ships in June. [[Atlas]]' },
+      {
+        type: 'complete',
+        messages: [{ role: 'assistant', content: 'It ships in June. [[Atlas]]' }],
+      },
+    ])
+    const writeText = vi.fn(async () => {})
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    const view = await renderChat()
+
+    await userEvent.type(view.getByLabelText('Chat message'), 'when does atlas ship?{Enter}')
+    const copyButton = view.getByRole('button', { name: 'Copy reply' })
+    const copyFooter = copyButton.element().closest('[data-slot="message-footer"]')
+    if (!(copyFooter instanceof HTMLElement)) {
+      expect.unreachable('copy button did not render in a message footer')
+    }
+
+    expect(getComputedStyle(copyFooter).opacity).toBe('0')
+    expect(getComputedStyle(copyFooter).pointerEvents).toBe('none')
+    expect(getComputedStyle(copyButton.element()).pointerEvents).toBe('none')
+    expect(getComputedStyle(copyButton.element()).width).toBe('20px')
+    expect(copyFooter.parentElement?.classList.contains('group/assistant-response')).toBe(true)
+    expect(copyFooter.classList.contains('group-hover/assistant-response:opacity-100')).toBe(true)
+
+    // The browser suite emulates touch, where hover media queries stay off;
+    // keyboard focus exercises the equivalent accessible reveal path.
+    copyButton.element().focus()
+    await vi.waitFor(() => {
+      expect(getComputedStyle(copyFooter).opacity).toBe('1')
+      expect(getComputedStyle(copyFooter).pointerEvents).toBe('auto')
+      expect(getComputedStyle(copyButton.element()).pointerEvents).toBe('auto')
+    })
+    await copyButton.click()
+
+    // The wiki link survives the copy, so a pasted reply still links.
+    expect(writeText).toHaveBeenCalledWith('It ships in June. [[Atlas]]')
   })
 
   it('opens ⌘-clicked tool-result and read-note links in new windows', async () => {
@@ -541,6 +583,8 @@ describe('ChatScreen', () => {
     // Visible immediately as plain text — never re-parsed per delta.
     await expect.element(view.getByText('Streaming **markdown**')).toBeInTheDocument()
     expect(view.getByTestId('markdown-preview').query()).toBeNull()
+    // Nothing to copy until the reply is whole.
+    expect(view.getByRole('button', { name: 'Copy reply' }).query()).toBeNull()
   })
 
   it('rejects a second send fired before the first one has rendered', async () => {

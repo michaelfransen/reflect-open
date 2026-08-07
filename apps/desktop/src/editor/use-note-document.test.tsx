@@ -100,7 +100,7 @@ function gateInvokes(match: (command: string, args: Record<string, unknown>) => 
     if (match(command, args)) {
       await gate
     }
-    return ungated?.(command, args)
+    return await ungated?.(command, args)
   })
   return release
 }
@@ -121,7 +121,7 @@ function installGraphFake({ files, linkSources, resolveTitleTo }: GraphFakeOptio
       return null
     }
     if (command === 'db_query') {
-      const sql = String((args as { sql: string }).sql)
+      const sql = (args as { sql: string }).sql
       if (sql.includes('"links"')) {
         return linkSources ? linkSources() : []
       }
@@ -386,7 +386,7 @@ describe('useNoteDocument', () => {
     }
   })
 
-  it('a lazy note\u2019s first heading never fires a rename', async () => {
+  it('a lazy note\u{2019}s first heading never fires a rename', async () => {
     vi.useFakeTimers()
     try {
       const files: Record<string, string> = {
@@ -473,7 +473,9 @@ describe('useNoteDocument', () => {
   it('the pane adopts its retargeted session when the route follows a move (Plan 17)', async () => {
     vi.useFakeTimers()
     const moves: Array<[string, string]> = []
-    const unsubscribe = onNoteMoved((from, to) => moves.push([from, to]))
+    const unsubscribe = onNoteMoved((from, to) => {
+      moves.push([from, to])
+    })
     try {
       const files: Record<string, string> = { 'notes/a.md': managedNote('# Old Title\n') }
       installGraphFake({ files })
@@ -813,7 +815,7 @@ describe('useNoteDocument', () => {
         if (command === 'note_write') {
           disk = (args as { contents: string }).contents
           writes.push(disk)
-          return new Promise<null>((resolve) => {
+          return await new Promise<null>((resolve) => {
             resolveWrite = () => resolve(null)
           })
         }
@@ -857,7 +859,7 @@ describe('useNoteDocument', () => {
           writes.push(disk)
           writeCount += 1
           if (writeCount === 1) {
-            return new Promise<null>((resolve) => {
+            return await new Promise<null>((resolve) => {
               resolveWrite = () => resolve(null)
             })
           }

@@ -5,7 +5,7 @@ import { captureMetaFetch } from '../graph/commands'
  * enrichment: fetch the captured page (through the hard-capped Rust
  * `capture_meta_fetch` primitive) and pull `<title>`, the meta description,
  * and the OpenGraph basics out of the HTML. Parsing uses `DOMParser`
- * (native in the webview; tests run under jsdom), never regex over HTML.
+ * (native in the webview; tests run in a real browser), never regex over HTML.
  */
 
 export interface PageMeta {
@@ -21,7 +21,7 @@ export interface PageMeta {
 const MAX_META_CHARS = 500
 
 function clean(value: string | null | undefined): string | null {
-  const collapsed = value?.replace(/\s+/g, ' ').trim() ?? ''
+  const collapsed = value?.replaceAll(/\s+/g, ' ').trim() ?? ''
   if (collapsed === '') {
     return null
   }

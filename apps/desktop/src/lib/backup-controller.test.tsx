@@ -164,7 +164,9 @@ function commitCount(calls: string[]): number {
 
 function trackStates(controller: ReturnType<typeof createBackupController>): BackupState[] {
   const states: BackupState[] = []
-  controller.subscribe(() => states.push(controller.getState()))
+  controller.subscribe(() => {
+    states.push(controller.getState())
+  })
   return states
 }
 
@@ -637,7 +639,7 @@ describe('createBackupController', () => {
           return 10_000
         }
         await vi.advanceTimersByTimeAsync(20_000)
-        return commitCount(calls) > 1 ? 30_000 : Number.POSITIVE_INFINITY
+        return commitCount(calls) > 1 ? 30_000 : Infinity
       } finally {
         vi.useRealTimers()
         setPlatformSurface({ mobileApp: false })
@@ -668,7 +670,9 @@ describe('createBackupController', () => {
       },
     })
     const batches: FileChange[][] = []
-    const unlisten = await subscribeFileChanges((changes) => batches.push(changes))
+    const unlisten = await subscribeFileChanges((changes) => {
+      batches.push(changes)
+    })
     const controller = createBackupController({ graph: GRAPH, indexGeneration: null })
     await controller.start()
 
@@ -707,7 +711,9 @@ describe('createBackupController', () => {
       ],
     })
     const batches: FileChange[][] = []
-    const unlisten = await subscribeFileChanges((changes) => batches.push(changes))
+    const unlisten = await subscribeFileChanges((changes) => {
+      batches.push(changes)
+    })
     const controller = createBackupController({ graph: GRAPH, indexGeneration: 1 })
     await controller.start()
 

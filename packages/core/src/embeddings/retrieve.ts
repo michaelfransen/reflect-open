@@ -133,7 +133,7 @@ export function fuseRanked(lists: RetrievalHit[][], limit: number): RetrievalHit
   const K = 60 // the standard RRF damping constant
   const fused = new Map<string, { hit: RetrievalHit; score: number }>()
   for (const list of lists) {
-    list.forEach((hit, index) => {
+    for (const [index, hit] of list.entries()) {
       const entry = fused.get(hit.path)
       const score = 1 / (K + index + 1)
       if (entry) {
@@ -145,7 +145,7 @@ export function fuseRanked(lists: RetrievalHit[][], limit: number): RetrievalHit
       } else {
         fused.set(hit.path, { hit: { ...hit }, score })
       }
-    })
+    }
   }
   return [...fused.values()]
     .sort((a, b) => b.score - a.score)
@@ -204,8 +204,10 @@ const MAX_RELATED_SEEDS = 16
 /**
  * Semantic neighbors of an existing note, seeded by its own **stored** chunk
  * vectors — no re-embedding, no pane-provided seed text: the embedding sync
- * keeps chunks current on every save, and the index invalidation scope
- * refetches consumers, so freshness is automatic. Every chunk seeds its own
+ * keeps chunks current on every save, so a call always reads the note as it
+ * was last embedded. Callers own their own refresh cadence (the desktop panel
+ * computes once per note per session); this is a read, and a costly one.
+ * Every chunk seeds its own
  * KNN pass (capped at {@link MAX_RELATED_SEEDS}) and the lists merge
  * nearest-first, so a multi-topic note — a daily note above all — surfaces
  * neighbors for anything written in it, not just its lead paragraph.

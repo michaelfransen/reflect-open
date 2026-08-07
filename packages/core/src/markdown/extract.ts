@@ -83,8 +83,8 @@ function slugify(text: string): string {
   return text
     .toLowerCase()
     .trim()
-    .replace(/[^\p{L}\p{N}\s-]/gu, '')
-    .replace(/\s+/g, '-')
+    .replaceAll(/[^\p{L}\p{N}\s-]/gu, '')
+    .replaceAll(/\s+/g, '-')
 }
 
 function hostOf(href: string): string | undefined {
@@ -103,7 +103,7 @@ function isAssetHref(href: string): boolean {
   if (/^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith('//') || href.startsWith('#')) {
     return false // external scheme, protocol-relative, or in-page anchor
   }
-  return /(^|\/)assets\//.test(href)
+  return /(?:^|\/)assets\//.test(href)
 }
 
 /**

@@ -9,7 +9,7 @@ vi.mock('@reflect/core', () => ({
 }))
 
 import { openIndex, syncIndex, subscribeIndexChanges, watchStart, watchStop } from '@reflect/core'
-import { createGraphIndex } from './graph-index'
+import { createGraphIndex, type GraphIndexProgress } from './graph-index'
 
 const mockOpen = vi.mocked(openIndex)
 // syncIndex (hash reconcile, or a version-bump rebuild — core decides) is the
@@ -62,6 +62,9 @@ describe('createGraphIndex', () => {
       generation: 5,
       signal: expect.any(AbortSignal),
       onMoved,
+      // Always wired, even with no consumer: the pass-summary log reads the
+      // progress counters through it.
+      onFileProgress: expect.any(Function),
     })
     expect(mockSubscribe).toHaveBeenCalledWith(5, onApplied, onMoved, expect.any(Function))
     // The initial reconcile is itself an index change: invalidate once there.
@@ -78,7 +81,7 @@ describe('createGraphIndex', () => {
   })
 
   it('reports progress: reconciling → live; idle when closed', async () => {
-    const onProgress = vi.fn()
+    const onProgress = vi.fn<(progress: GraphIndexProgress) => void>()
     const index = createGraphIndex({ onProgress })
     index.sync(5, () => false)
     await index.stop()
@@ -90,7 +93,7 @@ describe('createGraphIndex', () => {
   })
 
   it('reports idle (not live) when the sync pass fails un-superseded', async () => {
-    const onProgress = vi.fn()
+    const onProgress = vi.fn<(progress: GraphIndexProgress) => void>()
     mockSync.mockRejectedValue(new Error('boom'))
     const index = createGraphIndex({ onProgress })
     index.sync(5, () => false)

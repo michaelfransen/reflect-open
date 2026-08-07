@@ -138,10 +138,10 @@ export async function chunkNote(
   if (firstHeadingAt > bodyStart) {
     sections.push({ heading: null, from: bodyStart, to: firstHeadingAt })
   }
-  headings.forEach((heading, i) => {
+  for (const [i, heading] of headings.entries()) {
     const to = i + 1 < headings.length ? headings[i + 1]!.from : source.length
     sections.push({ heading: heading.text, from: heading.from, to })
-  })
+  }
 
   const chunks: NoteChunk[] = []
   for (const section of sections) {
@@ -154,7 +154,7 @@ export async function chunkNote(
 
   // Only the note's final chunk merges — mid-note section tails keep their
   // historical shape, so existing chunk hashes (and the re-embed skip) hold.
-  return mergeRuntTail(chunks, (from, to) => source.slice(from, to))
+  return await mergeRuntTail(chunks, (from, to) => source.slice(from, to))
 }
 
 /** `assets/graphs/q4.png` → `q4.png` — the chunk heading for an asset body. */

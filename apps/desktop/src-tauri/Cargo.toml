@@ -15,7 +15,9 @@ edition = "2021"
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
 name = "reflect_open_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+# `staticlib` links into the iOS app as `libapp.a`; `rlib` serves the desktop
+# binary. There is no Android target, so no `cdylib`.
+crate-type = ["staticlib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2.6.3", features = [] }
@@ -23,7 +25,7 @@ tauri-build = { version = "2.6.3", features = [] }
 [dependencies]
 # `devtools` compiles the web inspector into release builds too (it is otherwise
 # debug-only), so a shipped app stays debuggable — see `src/devtools.rs`.
-tauri = { version = "2.11.3", features = ["devtools"] }
+tauri = { version = "2.11.5", features = ["devtools"] }
 tauri-plugin-opener = "2.5.4"
 # Decodes `reflect-asset://` request paths (`fs/asset_protocol.rs`); the same
 # crate tauri itself uses for its protocol URLs.
@@ -42,7 +44,7 @@ tempfile = { workspace = true }
 sha2 = { workspace = true }
 dirs = "6.0.0"
 tauri-plugin-dialog = "2.7.1"
-base64 = "0.22.1"
+base64 = "0.23.0"
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 keyring = { version = "3.6.3", features = [
@@ -158,6 +160,10 @@ tauri-plugin-window-state = "2.4.1"
 trash = "5.2.6"
 notify = "8.2.0"
 notify-debouncer-full = "0.7.0"
+# The watcher's pruned file-ID cache (rename stitching without the full-tree
+# walk) reuses the debouncer's own building blocks directly.
+file-id = "0.2.3"
+walkdir = "2.5.0"
 # Direct dependency on fastembed's own downloader, used to pre-fetch the
 # embedding model with byte-level progress (fastembed downloads silently).
 hf-hub = { version = "0.5.0", default-features = false, features = ["ureq", "native-tls"] }
@@ -191,4 +197,4 @@ tauri-plugin-keyboard = { path = "../../../plugins/tauri-plugin-keyboard" }
 tauri-plugin-recording = { path = "../../../plugins/tauri-plugin-recording" }
 
 [dev-dependencies]
-tauri = { version = "2.11.2", features = ["test"] }
+tauri = { version = "2.11.5", features = ["test"] }

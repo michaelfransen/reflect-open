@@ -15,6 +15,7 @@
 //! [`error`] (the shared error contract).
 
 mod background_task;
+mod blocking;
 mod calendar;
 mod capture;
 mod conflict;
@@ -48,11 +49,6 @@ mod watcher;
 #[cfg(mobile)]
 #[path = "watcher_mobile.rs"]
 mod watcher;
-
-// TEMPORARY (Plan 19 spike A): on-device capability probes; delete with the
-// spike once the runtime gate verdict is recorded in the plan.
-#[cfg(mobile)]
-mod spike_mobile;
 
 use tauri::{Emitter, Manager};
 
@@ -173,7 +169,10 @@ pub fn run() {
     // geometry before first paint — avoiding a visible jump. Visibility is
     // deliberately not persistent: shutdown and updater relaunches can observe
     // a transiently hidden window, which must not suppress every later launch.
-    // The Ready event reveals the restored window below.
+    // The page-load hook below reveals it once the webview paints its first
+    // frame, so `theme-init.js` has applied the OS-preferred `.dark` scope
+    // before the window becomes visible — otherwise WKWebView flashes its
+    // default white backing between show() and the first HTML paint.
     #[cfg(desktop)]
     let builder = builder
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -187,6 +186,36 @@ pub fn run() {
                 .with_filter(|label| !label.starts_with(windows::NOTE_WINDOW_PREFIX))
                 .build(),
         );
+
+    // Reveal the main window on `PageLoadEvent::Finished`, not on
+    // `RunEvent::Ready`. Ready only guarantees plugin init + window-state
+    // geometry restore have finished — it does not wait for the webview to
+    // load the frontend, so on warm launches WKWebView is still on its
+    // default white backing when show() runs, producing the intermittent
+    // startup flash. Note windows already gate on Finished the same way
+    // (see `open_note_window` in windows.rs). `Once` fires exactly on the
+    // first Finished so reloads (⌘R, dev HMR, webview crash recovery)
+    // never re-steal focus. `on_page_load` also fires for note windows;
+    // filter by label so this handler only reveals the main one. Ready still
+    // matters as the point where the fallback reveal is armed, below.
+    #[cfg(desktop)]
+    let revealed_main = std::sync::Arc::new(std::sync::Once::new());
+
+    #[cfg(desktop)]
+    let builder = {
+        let revealed = std::sync::Arc::clone(&revealed_main);
+        builder.on_page_load(move |webview, payload| {
+            if webview.label() != windows::MAIN_WINDOW_LABEL {
+                return;
+            }
+            if !matches!(payload.event(), tauri::webview::PageLoadEvent::Finished) {
+                return;
+            }
+            revealed.call_once(|| {
+                windows::surface_main_window(webview.app_handle());
+            });
+        })
+    };
 
     // The keyboard bridge (Plan 19, decision 8) is mobile-only: desktop has
     // no software keyboard to track. (Sharing uses the webview's Web Share
@@ -202,18 +231,14 @@ pub fn run() {
     #[cfg(mobile)]
     let builder = builder.plugin(tauri_plugin_recording::init());
 
-    // The main window starts hidden (`visible: false`); desktop reveals it on
-    // Ready after restoring geometry, but mobile has no window-state plugin,
-    // so show it here or the UI would never appear.
-    //
-    // (Also runs the TEMPORARY Plan 19 spike-A capability probe — delete that
-    // line with the spike, but keep the window show.)
+    // The main window starts hidden (`visible: false`); desktop reveals it
+    // from the page-load hook above after restoring geometry, but mobile has
+    // no window-state plugin, so show it here or the UI would never appear.
     #[cfg(mobile)]
     let builder = builder.setup(|app| {
         if let Some(window) = app.get_webview_window(windows::MAIN_WINDOW_LABEL) {
             window.show()?;
         }
-        spike_mobile::run_self_check(app.handle());
         Ok(())
     });
 
@@ -268,6 +293,7 @@ pub fn run() {
             fs::transcript_cache_read,
             fs::transcript_cache_write,
             fs::asset_open,
+            fs::asset_reveal,
             fs::assets::asset_upload_begin,
             fs::assets::asset_upload_append,
             fs::assets::asset_upload_commit,
@@ -345,14 +371,23 @@ pub fn run() {
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|app, event| match &event {
-            // Config windows are built before Ready, including the synchronous
-            // window-state restore. Reveal the main window only after that
-            // geometry is settled, regardless of any stale persisted
-            // visibility from an older build.
+        .run(move |app, event| match &event {
+            // Ready no longer reveals the main window — the page-load hook
+            // above does, once the webview has painted. It is still the first
+            // point where the window and an app handle both exist, so arm the
+            // fallback that reveals it anyway if that load never finishes.
+            // (Arming from `.setup()` would silently replace the deep-link
+            // registration hook, which Tauri stores as a single callback.)
             #[cfg(desktop)]
             tauri::RunEvent::Ready => {
-                windows::surface_main_window(app);
+                let app = app.clone();
+                windows::arm_reveal_fallback(
+                    &revealed_main,
+                    windows::MAIN_WINDOW_LABEL,
+                    move || {
+                        windows::surface_main_window(&app);
+                    },
+                );
             }
             // Clicking the Dock icon is macOS's recovery path when an app has
             // no visible windows. Surface the hidden/minimized main window,

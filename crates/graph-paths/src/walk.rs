@@ -177,7 +177,11 @@ fn is_pruned_dir(name: &str, path: &Path) -> bool {
     is_pruned_dir_name(name) || has_cachedir_tag(path)
 }
 
-fn is_pruned_dir_name(name: &str) -> bool {
+/// Whether a single name is on the default prune list ([`PRUNED_DIR_NAMES`]),
+/// case-folded. The name-level half of [`has_pruned_component`], exported for
+/// walkers that filter by component as they descend (the desktop watcher's
+/// file-ID cache) rather than by assembled wire path.
+pub fn is_pruned_dir_name(name: &str) -> bool {
     PRUNED_DIR_NAMES
         .iter()
         .any(|pruned| name.eq_ignore_ascii_case(pruned))
@@ -249,7 +253,8 @@ mod tests {
         write(root, ".obsidian/plugin.md", "hidden");
         write(root, "Projects/.private/secret.md", "hidden");
         write(root, "Projects/upper.MD", "upper");
-        write(root, "notes/skip.txt", "c");
+        write(root, "notes/skip.xyz", "c");
+        write(root, "notes/keep.txt", "text");
         write(root, "assets/photo.png", "png");
         write(root, "Media/clip.MP4", "video");
 
@@ -270,7 +275,10 @@ mod tests {
             .iter()
             .map(|f| f.path.as_str())
             .collect();
-        assert_eq!(attachments, vec!["Media/clip.MP4", "assets/photo.png"]);
+        assert_eq!(
+            attachments,
+            vec!["Media/clip.MP4", "assets/photo.png", "notes/keep.txt"]
+        );
         assert!(catalog
             .notes
             .iter()

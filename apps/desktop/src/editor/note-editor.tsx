@@ -9,16 +9,16 @@ import {
 } from 'react'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import { errorMessage, type TimeFormat } from '@reflect/core'
-import {
-  type AcceptPendingReplacementOptions,
-  type ExitBoundaryHandler,
-  type FileClickHandler,
-  type FileInfoResolver,
-  type FileLinkResolver,
-  type MarkMode,
-  type SearchStatus,
-  type StartPendingReplacementOptions,
-  type WikilinkHoverHit,
+import type {
+  AcceptPendingReplacementOptions,
+  ExitBoundaryHandler,
+  FileClickHandler,
+  FileInfoResolver,
+  FileLinkResolver,
+  MarkMode,
+  SearchStatus,
+  StartPendingReplacementOptions,
+  WikilinkHoverHit,
 } from '@meowdown/core'
 import {
   MeowdownEditor,
@@ -467,7 +467,11 @@ export function NoteEditor({
         onExitBoundary={handleExitBoundary}
       >
         <EditorInputTraits />
-        <FormattingToolbarBridge />
+        {/* Only a pane that persists files gets the toolbar's attach button;
+            `handleFilePaste` is the same handler meowdown pastes through. */}
+        <FormattingToolbarBridge
+          {...(saveFile !== undefined ? { saveFile: handleFilePaste } : {})}
+        />
         {renderWikilinkHoverCard !== undefined ? (
           <WikilinkHoverCard className="reflect-hover-card">
             {renderWikilinkHoverCard}

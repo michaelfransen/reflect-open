@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { type AssetKind } from '../ai/describe-asset'
+import type { AssetKind } from '../ai/describe-asset'
 import { ASSETS_DIR, DESCRIPTION_SUFFIX } from '../graph/paths'
 import { parseFrontmatter, splitFrontmatter, upsertFrontmatter } from '../markdown/frontmatter'
 
@@ -85,7 +85,7 @@ export function readManagedDescription(source: string): ManagedDescription | nul
   if (!parsed.success) {
     return null
   }
-  const generatedAtMs = parsed.data.generatedAt ? Date.parse(parsed.data.generatedAt) : Number.NaN
+  const generatedAtMs = parsed.data.generatedAt ? Date.parse(parsed.data.generatedAt) : NaN
   return {
     sourceHash: parsed.data.sourceHash ?? null,
     sourceSize: parsed.data.sourceSize ?? null,

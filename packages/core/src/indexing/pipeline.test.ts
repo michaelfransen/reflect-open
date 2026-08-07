@@ -61,7 +61,7 @@ beforeEach(() => {
               mtime: 5,
               is_pinned: 0,
               fts_highlighted_title: 'A',
-              snippet: '\u0001Hello\u0002',
+              snippet: '\u{1}Hello\u{2}',
             },
           ]
         }
@@ -173,7 +173,9 @@ describe('rebuildIndex', () => {
     const progress: Array<[number, number, number]> = []
     await rebuildIndex({
       generation: 1,
-      onFileProgress: (done, total, worked) => progress.push([done, total, worked]),
+      onFileProgress: (done, total, worked) => {
+        progress.push([done, total, worked])
+      },
     })
     // A rebuild reads everything: worked tracks done, so the pill surfaces.
     expect(progress.at(-1)).toEqual([1, 1, 1])
@@ -248,7 +250,12 @@ describe('rebuildIndex', () => {
     })
     const skipped: Array<{ path: string; message: string }> = []
 
-    await rebuildIndex({ generation: 1, onSkippedNote: (note) => skipped.push(note) })
+    await rebuildIndex({
+      generation: 1,
+      onSkippedNote: (note) => {
+        skipped.push(note)
+      },
+    })
 
     expect(skipped).toEqual([{ path: 'notes/bad.md', message: 'unexpected end of hex escape' }])
     expect(mockInvoke.mock.calls.some(([command]) => command === 'index_meta_set')).toBe(true)
@@ -469,7 +476,7 @@ describe('Kysely → db_query bridge', () => {
   it('searchNotes runs the palette ranked query (title match, bm25, pinned, recency)', async () => {
     await searchNotes('hello')
     const query = mockInvoke.mock.calls.find(([cmd]) => cmd === 'db_query')
-    const sql = String((query![1] as { sql: string }).sql).toLowerCase()
+    const sql = (query![1] as { sql: string }).sql.toLowerCase()
     // searchNotes delegates to `searchWithFilters`, so it emits the palette's
     // ranked query verbatim — one search path, orderings can't drift.
     expect(sql).toContain('with "lexical" as materialized')
@@ -554,7 +561,12 @@ describe('reconcileIndex move healing (Plan 17)', () => {
     renameFake({ storedHash: await hashContent(CONTENT) })
     const moves: Array<[string, string]> = []
 
-    await reconcileIndex({ generation: 4, onMoved: (from, to) => moves.push([from, to]) })
+    await reconcileIndex({
+      generation: 4,
+      onMoved: (from, to) => {
+        moves.push([from, to])
+      },
+    })
 
     expect(moves).toEqual([[OLD, NEW]])
   })
@@ -609,7 +621,9 @@ describe('reconcileIndex over the native scan delta', () => {
 
     await reconcileIndex({
       generation: 4,
-      onFileProgress: (done, total, worked) => progress.push([done, total, worked]),
+      onFileProgress: (done, total, worked) => {
+        progress.push([done, total, worked])
+      },
     })
 
     const commands = mockInvoke.mock.calls.map(([cmd]) => cmd)
@@ -644,7 +658,9 @@ describe('reconcileIndex over the native scan delta', () => {
 
     await reconcileIndex({
       generation: 4,
-      onFileProgress: (done, total, worked) => progress.push([done, total, worked]),
+      onFileProgress: (done, total, worked) => {
+        progress.push([done, total, worked])
+      },
     })
 
     const commands = mockInvoke.mock.calls.map(([cmd]) => cmd)
@@ -744,7 +760,12 @@ describe('iCloud eviction placeholders (Plan 21)', () => {
     })
 
     const stale: string[][] = []
-    await rebuildIndex({ generation: 6, onStalePlaceholders: (paths) => stale.push([...paths]) })
+    await rebuildIndex({
+      generation: 6,
+      onStalePlaceholders: (paths) => {
+        stale.push([...paths])
+      },
+    })
 
     const batch = mockInvoke.mock.calls.find(([cmd]) => cmd === 'index_apply_batch')
     const notes = (batch![1] as { notes: { path: string }[] }).notes
@@ -772,7 +793,12 @@ describe('iCloud eviction placeholders (Plan 21)', () => {
     })
 
     const stale: string[][] = []
-    await reconcileIndex({ generation: 4, onStalePlaceholders: (paths) => stale.push([...paths]) })
+    await reconcileIndex({
+      generation: 4,
+      onStalePlaceholders: (paths) => {
+        stale.push([...paths])
+      },
+    })
 
     expect(stale).toEqual([['notes/remote-edit.md', 'notes/never-local.md']])
     // Placeholders are never read — that would force the very downloads the
