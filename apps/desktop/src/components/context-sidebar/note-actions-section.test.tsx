@@ -244,7 +244,7 @@ describe('NoteActionsSection copy-path action', () => {
   })
 
   it('surfaces clipboard failures through the operations status', async () => {
-    stubClipboard(vi.fn(async () => Promise.reject(new Error('Document is not focused'))))
+    stubClipboard(vi.fn(async () => await Promise.reject(new Error('Document is not focused'))))
     const view = await renderSection('notes/a.md')
 
     await userEvent.click(view.getByRole('button', { name: 'Copy note path' }))
